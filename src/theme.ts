@@ -2,7 +2,7 @@ import { Platform, type TextStyle, type ViewStyle } from "react-native";
 
 /** Hex equivalents of the storefront tokens in `src/styles.css`. */
 export const colors = {
-  background: "#fcfaf1",
+  background: "#f3f5f1",
   foreground: "#101f13",
   card: "#ffffff",
   primary: "#2e9226",
@@ -49,6 +49,9 @@ export const colors = {
   iherbBg: "#10261a",
   lime: "#c6ee4a",
   whatsapp: "#25D366",
+  sale: "#e11d48",
+  canvas: "#f3f5f1",
+  ink: "#122018",
 };
 
 export const gradients = {

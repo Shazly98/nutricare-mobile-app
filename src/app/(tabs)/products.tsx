@@ -17,7 +17,6 @@ import {
 } from "lucide-react-native";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
-import { CatalogHero } from "@/components/CatalogHero";
 import { ProductCard } from "@/components/ProductCard";
 import { SiteScreen } from "@/components/SiteScreen";
 import { ErrorBlock, Txt } from "@/components/ui";
@@ -25,9 +24,6 @@ import { useInfinitePublicProducts, usePublicCategories } from "@/lib/catalog";
 import { useI18n } from "@/lib/locale";
 import { categoryTitle } from "@/lib/localized";
 import { colors, fonts, twoColWidth } from "@/theme";
-
-const HERO_AR = require("../../../assets/images/catalog-hero-bg-mobile.jpg");
-const HERO_EN = require("../../../assets/images/catalog-hero-bg-EN.png");
 
 function iconForCategory(name: string): LucideIcon {
   const n = name.trim();
@@ -98,23 +94,14 @@ export default function ProductsScreen() {
 
   return (
     <SiteScreen
-      background={colors.catalogBg}
       initialQuery={params.q ?? ""}
       onEndReached={loadMore}
       refreshing={products.isRefetching && !products.isFetchingNextPage}
       onRefresh={() => void products.refetch()}
     >
-      <CatalogHero
-        image={locale === "en" ? HERO_EN : HERO_AR}
-        position={locale === "en" ? { right: 0, top: "50%" } : { left: "50%", top: "70%" }}
-        overlay="vertical"
-        crumb={t("navProducts")}
-        pill={t("fullCatalog")}
-        title={t("allProducts")}
-        subtitle={t("catalogSub", { count: totalCount > 0 ? totalCount : "…" })}
-      />
-
       <View style={styles.body}>
+        <Txt style={styles.pageTitle}>{t("allProducts")}</Txt>
+        <Txt style={styles.pageSub}>{t("catalogSub", { count: totalCount > 0 ? totalCount : "…" })}</Txt>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
           <Chip active={cat === "all"} onPress={() => setCat("all")} icon={<Grid2x2 size={14} color={cat === "all" ? colors.white : "#34464a"} />}>
             {t("all")}
@@ -259,7 +246,9 @@ function ViewToggle({ active, onPress, label, Icon }: { active: boolean; onPress
 }
 
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: 16, paddingVertical: 24 },
+  body: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24 },
+  pageTitle: { color: colors.ink, fontFamily: fonts.display800, fontSize: 22, lineHeight: 30 },
+  pageSub: { marginTop: 4, marginBottom: 12, color: colors.mutedFg, fontFamily: fonts.body500, fontSize: 13, lineHeight: 20 },
   chips: { gap: 8, paddingBottom: 4 },
   chip: { height: 32, flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 999, borderWidth: 1, paddingHorizontal: 12 },
   chipActive: { borderColor: colors.addGreen, backgroundColor: colors.addGreen, boxShadow: "0px 4px 12px 0px rgba(36,134,56,0.16)" },

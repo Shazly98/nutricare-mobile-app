@@ -9,6 +9,8 @@ const extraAr = {
   retry: "إعادة المحاولة",
   close: "إغلاق",
   chooseGov: "اختر المحافظة",
+  dealsRail: "تخفيضات",
+  shopRail: "تسوق الآن",
 };
 
 const extraEn: Record<keyof typeof extraAr, string> = {
@@ -17,6 +19,8 @@ const extraEn: Record<keyof typeof extraAr, string> = {
   retry: "Try again",
   close: "Close",
   chooseGov: "Choose a governorate",
+  dealsRail: "Deals",
+  shopRail: "Shop now",
 };
 
 export type MessageKey = SiteKey | keyof typeof extraAr;

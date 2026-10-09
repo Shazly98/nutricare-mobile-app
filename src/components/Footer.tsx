@@ -6,6 +6,7 @@ import { WhatsAppIcon } from "@/components/icons";
 import { BrandLogo, Gradient, Txt } from "@/components/ui";
 import { buildWhatsAppLink, FACEBOOK_URL, INSTAGRAM_URL } from "@/config/site";
 import { useI18n } from "@/lib/locale";
+import { TAB_BAR_HEIGHT } from "@/components/MobileTabBar";
 import { colors, fonts, shadows, text } from "@/theme";
 
 export function Footer() {
@@ -90,7 +91,7 @@ export function FloatingWhatsApp() {
   const translateY = float.interpolate({ inputRange: [0, 1], outputRange: [0, -8] });
 
   return (
-    <Animated.View style={[styles.fab, { bottom: 136 + insets.bottom, transform: [{ translateY }] }]}>
+    <Animated.View style={[styles.fab, { bottom: TAB_BAR_HEIGHT + insets.bottom + 84, transform: [{ translateY }] }]}>
       <Pressable onPress={() => void Linking.openURL(buildWhatsAppLink(t("waHello")))} accessibilityLabel={t("waFloat")}>
         <Gradient style={styles.fabInner}>
           <WhatsAppIcon size={28} color={colors.primaryFg} />

@@ -112,7 +112,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
           return [...current, { productId: product.id, quantity, ...nextItem }];
         });
         toast.show(t("added"), "success");
-        setIsOpen(true);
         return "ok";
       },
       updateQty: (productId, quantity) => {

@@ -49,7 +49,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <View style={{ flex: 1, backgroundColor: colors.white }}>
-        <StatusBar style={loaderVisible ? "dark" : "light"} />
+        <StatusBar style="dark" />
         {fontsReady ? (
           <QueryClientProvider client={queryClient}>
             <LocaleProvider>

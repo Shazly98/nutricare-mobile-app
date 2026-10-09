@@ -1,22 +1,25 @@
-import { Image } from "expo-image";
 import { router } from "expo-router";
 import {
+  Atom,
   BadgeCheck,
-  ClipboardList,
+  ChevronLeft,
+  ChevronRight,
+  Dumbbell,
+  Leaf,
   Newspaper,
-  ShoppingBag,
-  Sparkles,
+  Pill as PillIcon,
+  ShieldCheck,
+  Smile,
   Stethoscope,
   Truck,
+  Zap,
   type LucideIcon,
 } from "lucide-react-native";
-import type { ReactElement } from "react";
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
-import { IHerbSection } from "@/components/IHerbSection";
-import { HomeOffers } from "@/components/OfferCards";
+import { LinearGradient } from "expo-linear-gradient";
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { ProductCard } from "@/components/ProductCard";
 import { SiteScreen } from "@/components/SiteScreen";
-import { ArrowLink, BrandLogo, Eyebrow, Gradient, Pill, RemoteImage, SectionHeading, Txt } from "@/components/ui";
+import { RemoteImage, Txt } from "@/components/ui";
 import {
   usePublicArticles,
   usePublicBrands,
@@ -24,13 +27,13 @@ import {
   usePublicOffers,
   usePublicProducts,
 } from "@/lib/catalog";
-import { formatArticleDate } from "@/lib/format";
 import { useI18n } from "@/lib/locale";
-import { articleCardExcerpt, articleTitle, categoryTitle } from "@/lib/localized";
+import { articleTitle, categoryTitle } from "@/lib/localized";
 import type { Article, Brand, Category, Product } from "@/lib/types";
-import { colors, fonts, shadows, text, twoColWidth } from "@/theme";
+import { discountPercent } from "@/lib/types";
+import { colors, fonts, twoColWidth } from "@/theme";
 
-const HERO = require("../../../assets/images/hero-lifestyle.jpg");
+const RAIL_CARD = 168;
 
 export default function HomeScreen() {
   const products = usePublicProducts();
@@ -42,22 +45,8 @@ export default function HomeScreen() {
   const cats = categories.data ?? [];
   const featured = catalog.filter((p) => p.is_featured);
   const showcase = (featured.length > 0 ? featured : catalog).slice(0, 8);
-  const productCount = catalog.length;
-
-  const sections: { key: string; node: ReactElement | null; dark?: boolean }[] = [
-    { key: "hero", node: <Hero productCount={productCount} /> },
-    { key: "trust", node: <TrustBar productCount={productCount} /> },
-    { key: "categories", node: cats.length > 0 ? <Categories categories={cats} products={catalog} /> : null },
-    { key: "featured", node: showcase.length > 0 ? <Featured products={showcase} usingFallback={featured.length === 0} /> : null },
-    { key: "offers", node: (offers.data ?? []).length > 0 ? <HomeOffers offers={offers.data ?? []} /> : null },
-    { key: "iherb", node: <IHerbSection />, dark: true },
-    { key: "brands", node: (brands.data ?? []).length > 0 ? <Brands brands={brands.data ?? []} /> : null },
-    { key: "bulletin", node: (articles.data ?? []).length > 0 ? <Bulletin articles={articles.data ?? []} /> : null },
-    { key: "how", node: <HowItWorks /> },
-    { key: "about", node: <About /> },
-    { key: "cta", node: <HomeCta /> },
-  ];
-  const visible = sections.filter((section) => section.node !== null);
+  const deals = catalog.filter((p) => discountPercent(Number(p.price), p.old_price) > 0).slice(0, 10);
+  const offerCount = (offers.data ?? []).length;
 
   const refreshing = products.isRefetching || offers.isRefetching;
   const refresh = () => {
@@ -70,116 +59,144 @@ export default function HomeScreen() {
 
   return (
     <SiteScreen refreshing={refreshing} onRefresh={refresh}>
-      {visible.map((section, index) => (
-        <View
-          key={section.key}
-          style={{ backgroundColor: section.dark ? colors.iherbBg : index % 2 === 0 ? "#ffffff" : colors.sectionAlt }}
-        >
-          {section.node}
-        </View>
-      ))}
+      <View style={styles.page}>
+        <PromoRail offerCount={offerCount} />
+        <TrustStrip productCount={catalog.length} />
+        {cats.length > 0 ? <Categories categories={cats} /> : null}
+        {deals.length > 0 ? <ProductRail products={deals} onSeeAll={() => router.navigate("/offers")} /> : null}
+        {showcase.length > 0 ? (
+          <Featured products={showcase} usingFallback={featured.length === 0} />
+        ) : null}
+        {(brands.data ?? []).length > 0 ? <Brands brands={brands.data ?? []} /> : null}
+        <IHerbBanner />
+        {(articles.data ?? []).length > 0 ? <Bulletin articles={articles.data ?? []} /> : null}
+      </View>
     </SiteScreen>
   );
 }
 
-function Hero({ productCount }: { productCount: number }) {
-  const { t } = useI18n();
-  return (
-    <View>
-      <Image source={HERO} style={{ width: "100%", aspectRatio: 1942 / 809 }} contentFit="cover" accessibilityLabel={t("heroAlt")} />
-      <View style={styles.heroBody}>
-        <View>
-          <Txt style={styles.kicker}>{t("homeKicker")}</Txt>
-          <Txt style={styles.h1}>{t("homeTitle")}</Txt>
-          <Txt style={styles.lead}>
-            {productCount > 0 ? t("homeLeadCount", { count: productCount }) : t("homeLeadEmpty")} {t("homeLeadBrands")}
-          </Txt>
-        </View>
-        <View style={styles.heroActions}>
-          <Pill
-            label={t("shopProducts")}
-            icon={<ShoppingBag size={16} color={colors.primaryFg} />}
-            onPress={() => router.navigate("/products")}
-          />
-          <Pill
-            label={t("navContact")}
-            variant="outline"
-            onPress={() => router.navigate("/contact")}
-            style={{ borderColor: colors.searchLine, backgroundColor: colors.white }}
-          />
-        </View>
-      </View>
-    </View>
-  );
-}
-
-function TrustBar({ productCount }: { productCount: number }) {
-  const { t } = useI18n();
-  const items: { icon: LucideIcon; title: string; d: string }[] = [
-    { icon: BadgeCheck, title: t("trust1t"), d: t("trust1d") },
-    { icon: Stethoscope, title: t("trust2t"), d: t("trust2d") },
-    { icon: Truck, title: t("trust3t"), d: t("trust3d") },
-    { icon: Sparkles, title: productCount > 0 ? t("trust4t", { count: productCount }) : t("catalogWide"), d: t("trust4d") },
+function PromoRail({ offerCount }: { offerCount: number }) {
+  const { t, isRTL } = useI18n();
+  const Arrow = isRTL ? ChevronLeft : ChevronRight;
+  const cards = [
+    {
+      key: "shop",
+      title: t("shopProducts"),
+      body: t("homeLeadEmpty"),
+      colors: [colors.primary, "#1f6b22"] as const,
+      onPress: () => router.navigate("/products"),
+    },
+    {
+      key: "offers",
+      title: t("allOffers"),
+      body: offerCount > 0 ? t("offersSubCount", { count: offerCount }) : t("offerSub"),
+      colors: ["#173222", "#245c38"] as const,
+      onPress: () => router.navigate("/offers"),
+    },
+    {
+      key: "iherb",
+      title: t("navIherb"),
+      body: t("iherbTitle"),
+      colors: ["#10261a", "#1c4330"] as const,
+      onPress: () => router.navigate("/iherb"),
+    },
   ];
 
   return (
-    <View style={styles.trust}>
-      {items.map((item, index) => (
-        <View
-          key={item.d}
-          style={[styles.trustItem, index > 0 && styles.trustDivider]}
-        >
-          <View style={styles.trustIcon}>
-            <item.icon size={18} color={colors.primary} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Txt style={styles.trustTitle}>{item.title}</Txt>
-            <Txt style={styles.trustText}>{item.d}</Txt>
-          </View>
-        </View>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.promoRow}>
+      {cards.map((card) => (
+        <Pressable key={card.key} onPress={card.onPress} style={styles.promoCard}>
+          <LinearGradient colors={card.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.promoFill}>
+            <Text style={styles.promoTitle}>{card.title}</Text>
+            <Text numberOfLines={2} style={styles.promoBody}>
+              {card.body}
+            </Text>
+            <View style={styles.promoCta}>
+              <Text style={styles.promoCtaText}>{t("shopRail")}</Text>
+              <Arrow size={14} color={colors.ink} />
+            </View>
+          </LinearGradient>
+        </Pressable>
       ))}
-    </View>
+    </ScrollView>
   );
 }
 
-function Categories({ categories, products }: { categories: Category[]; products: Product[] }) {
-  const { t, locale } = useI18n();
-  const { width } = useWindowDimensions();
-  const cell = twoColWidth(width);
-
+function TrustStrip({ productCount }: { productCount: number }) {
+  const { t } = useI18n();
+  const items = [
+    { icon: BadgeCheck, label: t("trust1t") },
+    { icon: Truck, label: t("trust3t") },
+    { icon: ShieldCheck, label: productCount > 0 ? t("trust4t", { count: productCount }) : t("catalogWide") },
+  ];
   return (
-    <View style={[styles.section, styles.borderY]}>
-      <View style={{ gap: 16 }}>
-        <SectionHeading align="start" eyebrow={t("catEyebrow")} title={t("catTitle")} subtitle={t("catSub")} />
-        <ArrowLink label={t("allProducts")} onPress={() => router.navigate("/products")} />
-      </View>
-      <View style={styles.grid}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trustRow}>
+      {items.map((item) => (
+        <View key={item.label} style={styles.trustChip}>
+          <item.icon size={14} color={colors.primary} />
+          <Text style={styles.trustText}>{item.label}</Text>
+        </View>
+      ))}
+    </ScrollView>
+  );
+}
+
+function iconForCategory(name: string): LucideIcon {
+  const n = name.trim();
+  if (n.includes("فيتامين") || n.includes("vitamin")) return PillIcon;
+  if (n.includes("معادن") || n.includes("معدن") || n.includes("mineral")) return Atom;
+  if (n.includes("شعر") || n.includes("بشرة") || n.includes("hair") || n.includes("skin")) return Leaf;
+  if (n.includes("مناعة") || n.includes("immune")) return ShieldCheck;
+  if (n.includes("طاقة") || n.includes("تركيز") || n.includes("energy") || n.includes("focus")) return Zap;
+  if (n.includes("أطفال") || n.includes("طفل") || n.includes("kid") || n.includes("child")) return Smile;
+  if (n.includes("رياض") || n.includes("بروتين") || n.includes("sport") || n.includes("protein")) return Dumbbell;
+  if (n.includes("هضم") || n.includes("هضمي") || n.includes("digest")) return Stethoscope;
+  return Leaf;
+}
+
+function Categories({ categories }: { categories: Category[] }) {
+  const { t, locale } = useI18n();
+  return (
+    <View style={styles.block}>
+      <SectionHead title={t("catTitle")} action={t("allProducts")} onPress={() => router.navigate("/products")} />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
         {categories.map((c) => {
-          const count = products.filter((p) => p.category_id === c.id).length;
+          const Icon = iconForCategory(`${c.name_ar} ${c.name_en ?? ""}`);
           const isImage = Boolean(c.icon && /^(https?:|\/)/i.test(c.icon));
           return (
             <Pressable
               key={c.id}
               onPress={() => router.navigate({ pathname: "/products", params: { category: c.id, q: "" } })}
-              style={[styles.catCard, { width: cell }]}
+              style={styles.catItem}
             >
-              <View style={styles.catIcon}>
+              <View style={styles.catCircle}>
                 {isImage ? (
                   <RemoteImage uri={c.icon} style={{ width: "100%", height: "100%" }} />
                 ) : (
-                  <Text style={{ fontSize: 20 }}>{c.icon || "🌿"}</Text>
+                  <Icon size={22} color={colors.primary} />
                 )}
               </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Txt numberOfLines={1} style={styles.catName}>
-                  {categoryTitle(c, locale)}
-                </Txt>
-                <Txt style={styles.catCount}>{count > 0 ? t("productCount", { count }) : t("browseCategory")}</Txt>
-              </View>
+              <Text numberOfLines={2} style={styles.catName}>
+                {categoryTitle(c, locale)}
+              </Text>
             </Pressable>
           );
         })}
-      </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+function ProductRail({ products, onSeeAll }: { products: Product[]; onSeeAll: () => void }) {
+  const { t } = useI18n();
+  return (
+    <View style={styles.block}>
+      <SectionHead title={t("dealsRail")} action={t("viewAll")} onPress={onSeeAll} />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
+        {products.map((product) => (
+          <ProductCard key={product.id} product={product} width={RAIL_CARD} />
+        ))}
+      </ScrollView>
     </View>
   );
 }
@@ -189,19 +206,15 @@ function Featured({ products, usingFallback }: { products: Product[]; usingFallb
   const { width } = useWindowDimensions();
   const cell = twoColWidth(width);
   return (
-    <View style={styles.section}>
-      <View style={{ gap: 16 }}>
-        <SectionHeading
-          align="start"
-          eyebrow={t("featEyebrow")}
-          title={usingFallback ? t("featFallback") : t("featTitle")}
-          subtitle={t("featSub")}
-        />
-        <ArrowLink label={t("viewAll")} onPress={() => router.navigate("/products")} />
-      </View>
+    <View style={styles.block}>
+      <SectionHead
+        title={usingFallback ? t("featFallback") : t("featTitle")}
+        action={t("viewAll")}
+        onPress={() => router.navigate("/products")}
+      />
       <View style={styles.grid}>
-        {products.map((p) => (
-          <ProductCard key={p.id} product={p} width={cell} />
+        {products.map((product) => (
+          <ProductCard key={product.id} product={product} width={cell} />
         ))}
       </View>
     </View>
@@ -210,261 +223,161 @@ function Featured({ products, usingFallback }: { products: Product[]; usingFallb
 
 function Brands({ brands }: { brands: Brand[] }) {
   const { t } = useI18n();
-  const { width } = useWindowDimensions();
-  const cell = Math.floor((width - 32 - 24) / 3);
   return (
-    <View style={[styles.section, { borderTopWidth: 1, borderTopColor: colors.border60 }]}>
-      <SectionHeading eyebrow={t("brandEyebrow")} title={t("brandTitle")} subtitle={t("brandSub")} />
-      <View style={[styles.grid, { marginTop: 40 }]}>
+    <View style={styles.block}>
+      <SectionHead title={t("brandTitle")} action={t("allProducts")} onPress={() => router.navigate("/products")} />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.brandRow}>
         {brands.map((b) => (
           <Pressable
             key={b.id}
             onPress={() => router.navigate({ pathname: "/products", params: { q: b.name, category: "" } })}
-            style={[styles.brandTile, { width: cell, height: cell }]}
+            style={styles.brandTile}
           >
             {b.logo_url ? (
-              <RemoteImage uri={b.logo_url} fit="contain" style={{ width: "100%", height: "100%", borderRadius: 16 }} />
+              <RemoteImage uri={b.logo_url} fit="contain" style={{ width: "100%", height: "100%" }} />
             ) : (
-              <Text style={styles.brandName}>{b.name}</Text>
+              <Text numberOfLines={2} style={styles.brandName}>
+                {b.name}
+              </Text>
             )}
           </Pressable>
         ))}
-      </View>
+      </ScrollView>
     </View>
+  );
+}
+
+function IHerbBanner() {
+  const { t, isRTL } = useI18n();
+  const Arrow = isRTL ? ChevronLeft : ChevronRight;
+  return (
+    <Pressable onPress={() => router.navigate("/iherb")} style={styles.iherb}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.iherbKicker}>iHerb</Text>
+        <Text style={styles.iherbTitle}>{t("iherbTitle")}</Text>
+      </View>
+      <View style={styles.iherbBtn}>
+        <Arrow size={18} color={colors.ink} />
+      </View>
+    </Pressable>
   );
 }
 
 function Bulletin({ articles }: { articles: Article[] }) {
   const { t, locale } = useI18n();
-  const items = articles.slice(0, 3);
   return (
-    <View style={[styles.section, { paddingVertical: 64 }]}>
-      <View style={{ gap: 16 }}>
-        <View>
-          <Eyebrow label={t("bulletinEyebrow")} icon={<Newspaper size={14} color={colors.primary} />} />
-          <Txt style={[styles.h2, { marginTop: 12 }]}>{t("bulletinTitle")}</Txt>
-          <Txt style={[styles.subText, { marginTop: 8 }]}>{t("bulletinHomeSub")}</Txt>
-        </View>
-        <ArrowLink label={t("allBulletins")} onPress={() => router.navigate("/bulletin")} />
-      </View>
-      <View style={{ marginTop: 40, gap: 16 }}>
-        {items.map((article) => {
-          const excerpt = articleCardExcerpt(article, locale);
-          const date = formatArticleDate(article.published_at || article.created_at, locale);
-          return (
-            <Pressable
-              key={article.id}
-              onPress={() => router.navigate({ pathname: "/article/[slug]", params: { slug: article.slug } })}
-              style={styles.articleCard}
-            >
-              <View style={styles.articleCover}>
-                {article.cover_url ? (
-                  <RemoteImage uri={article.cover_url} style={{ width: "100%", height: "100%" }} />
-                ) : (
-                  <Newspaper size={32} color={colors.primary} />
-                )}
-              </View>
-              <View style={{ padding: 20 }}>
-                {date ? <Txt style={styles.date}>{date}</Txt> : null}
-                <Txt style={styles.articleTitle}>{articleTitle(article, locale)}</Txt>
-                {excerpt ? (
-                  <Txt numberOfLines={2} style={[styles.subText, { marginTop: 8 }]}>
-                    {excerpt}
-                  </Txt>
-                ) : null}
-              </View>
-            </Pressable>
-          );
-        })}
-      </View>
-    </View>
-  );
-}
-
-function HowItWorks() {
-  const { t } = useI18n();
-  const steps = [
-    { n: "01", title: t("step1t"), d: t("step1d") },
-    { n: "02", title: t("step2t"), d: t("step2d") },
-    { n: "03", title: t("step3t"), d: t("step3d") },
-  ];
-  return (
-    <View style={styles.section}>
-      <SectionHeading eyebrow={t("stepEyebrow")} title={t("stepTitle")} subtitle={t("stepSub")} />
-      <View style={{ marginTop: 40, gap: 16 }}>
-        {steps.map((step) => (
-          <View key={step.n} style={styles.stepCard}>
-            <Txt style={styles.stepNum}>{step.n}</Txt>
-            <Txt style={styles.stepTitle}>{step.title}</Txt>
-            <Txt style={[styles.subText, { marginTop: 8 }]}>{step.d}</Txt>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-}
-
-function About() {
-  const { t } = useI18n();
-  const features: { icon: LucideIcon; title: string }[] = [
-    { icon: BadgeCheck, title: t("about1") },
-    { icon: Truck, title: t("about2") },
-    { icon: ClipboardList, title: t("about3") },
-  ];
-  return (
-    <View style={[styles.section, { paddingVertical: 64, gap: 40 }]}>
-      <View>
-        <SectionHeading eyebrow={t("aboutEyebrow")} title={t("aboutTitle")} align="start" />
-        <Txt style={styles.aboutBody}>
-          <Text style={{ color: colors.primary, fontFamily: fonts.body700 }}>NutriCare</Text> {t("aboutBody")}
-        </Txt>
-        <View style={{ marginTop: 24, gap: 12 }}>
-          {features.map((f) => (
-            <View key={f.title} style={styles.featureRow}>
-              <View style={styles.featureIcon}>
-                <f.icon size={16} color={colors.primary} />
-              </View>
-              <Txt style={styles.featureText}>{f.title}</Txt>
+    <View style={styles.block}>
+      <SectionHead title={t("bulletinTitle")} action={t("allBulletins")} onPress={() => router.navigate("/bulletin")} />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
+        {articles.slice(0, 6).map((article) => (
+          <Pressable
+            key={article.id}
+            onPress={() => router.navigate({ pathname: "/article/[slug]", params: { slug: article.slug } })}
+            style={styles.article}
+          >
+            <View style={styles.articleCover}>
+              {article.cover_url ? (
+                <RemoteImage uri={article.cover_url} style={{ width: "100%", height: "100%" }} />
+              ) : (
+                <Newspaper size={22} color={colors.primary} />
+              )}
             </View>
-          ))}
-        </View>
-      </View>
-      <View style={styles.aboutCard}>
-        <BrandLogo size={132} />
-        <Txt style={styles.aboutTag}>Nourishing Life, Naturally</Txt>
-        <Txt style={[styles.subText, { marginTop: 8, textAlign: "center" }]}>{t("aboutTag")}</Txt>
-      </View>
+            <Txt numberOfLines={2} style={styles.articleTitle}>
+              {articleTitle(article, locale)}
+            </Txt>
+          </Pressable>
+        ))}
+      </ScrollView>
     </View>
   );
 }
 
-function HomeCta() {
-  const { t } = useI18n();
+function SectionHead({ title, action, onPress }: { title: string; action: string; onPress: () => void }) {
+  const { isRTL } = useI18n();
+  const Arrow = isRTL ? ChevronLeft : ChevronRight;
   return (
-    <View style={{ paddingHorizontal: 16, paddingVertical: 64 }}>
-      <Gradient style={styles.cta}>
-        <View>
-          <Txt style={[styles.h2, { color: colors.primaryFg }]}>{t("ctaTitle")}</Txt>
-          <Txt style={[styles.subText, { marginTop: 8, color: "rgba(252,252,252,0.85)" }]}>{t("ctaBody")}</Txt>
-        </View>
-        <View style={styles.ctaActions}>
-          <Pill
-            label={t("productsPage")}
-            variant="white"
-            onPress={() => router.navigate("/products")}
-            style={{ paddingHorizontal: 20 }}
-          />
-          <Pill
-            label={t("contactPage")}
-            variant="ghostWhite"
-            onPress={() => router.navigate("/contact")}
-            style={{ paddingHorizontal: 20 }}
-          />
-        </View>
-      </Gradient>
+    <View style={styles.head}>
+      <Text style={styles.headTitle}>{title}</Text>
+      <Pressable onPress={onPress} style={styles.headAction} accessibilityLabel={action}>
+        <Text style={styles.headActionText}>{action}</Text>
+        <Arrow size={14} color={colors.primary} />
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  heroBody: { borderTopWidth: 1, borderTopColor: colors.searchLine, paddingHorizontal: 16, paddingVertical: 28, gap: 24 },
-  kicker: { color: colors.primary, fontFamily: fonts.body800, ...text.xs, letterSpacing: 0.3 },
-  h1: { marginTop: 8, fontFamily: fonts.display900, fontSize: 30, lineHeight: 40 },
-  lead: { marginTop: 12, color: colors.mutedFg, ...text.sm, lineHeight: 23 },
-  heroActions: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 12 },
-  trust: { flexDirection: "row", flexWrap: "wrap", borderBottomWidth: 1, borderBottomColor: colors.headerLine },
-  trustItem: { width: "50%", flexDirection: "row", alignItems: "flex-start", gap: 12, paddingHorizontal: 20, paddingVertical: 20 },
-  trustDivider: {
-    borderStartWidth: 1,
-    borderStartColor: colors.headerLine,
-    borderTopWidth: 1,
-    borderTopColor: colors.headerLine,
+  page: { paddingTop: 14, paddingBottom: 8, gap: 22 },
+  promoRow: { paddingHorizontal: 16, gap: 12 },
+  promoCard: { width: 260, height: 148, borderRadius: 18, overflow: "hidden" },
+  promoFill: { flex: 1, padding: 16, justifyContent: "space-between" },
+  promoTitle: { color: colors.white, fontFamily: fonts.display800, fontSize: 20, lineHeight: 28 },
+  promoBody: { color: "rgba(255,255,255,0.82)", fontFamily: fonts.body500, fontSize: 13, lineHeight: 19 },
+  promoCta: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderRadius: 999,
+    backgroundColor: colors.white,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
-  trustIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 16,
+  promoCtaText: { color: colors.ink, fontFamily: fonts.body800, fontSize: 12 },
+  trustRow: { paddingHorizontal: 16, gap: 8 },
+  trustChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 999,
+    backgroundColor: colors.white,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  trustText: { color: colors.ink, fontFamily: fonts.body700, fontSize: 12 },
+  block: { gap: 12 },
+  head: { paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  headTitle: { flex: 1, color: colors.ink, fontFamily: fonts.display800, fontSize: 18, lineHeight: 26 },
+  headAction: { flexDirection: "row", alignItems: "center", gap: 2 },
+  headActionText: { color: colors.primary, fontFamily: fonts.body800, fontSize: 13 },
+  catRow: { paddingHorizontal: 16, gap: 14 },
+  catItem: { width: 72, alignItems: "center", gap: 8 },
+  catCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 22,
+    overflow: "hidden",
     backgroundColor: colors.white,
     alignItems: "center",
     justifyContent: "center",
-    boxShadow: shadows.card,
   },
-  trustTitle: { fontFamily: fonts.body800, ...text.sm },
-  trustText: { marginTop: 2, color: colors.mutedFg, ...text.xs },
-  section: { paddingHorizontal: 16, paddingVertical: 56 },
-  borderY: { borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border60 },
-  grid: { marginTop: 32, flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  catCard: {
+  catName: { color: colors.ink, fontFamily: fonts.body700, fontSize: 11, lineHeight: 15, textAlign: "center" },
+  rail: { paddingHorizontal: 16, gap: 10 },
+  grid: { paddingHorizontal: 16, flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  brandRow: { paddingHorizontal: 16, gap: 10 },
+  brandTile: {
+    width: 88,
+    height: 64,
+    borderRadius: 14,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 8,
+  },
+  brandName: { color: colors.ink, fontFamily: fonts.body800, fontSize: 11, textAlign: "center" },
+  iherb: {
+    marginHorizontal: 16,
+    borderRadius: 18,
+    backgroundColor: colors.iherbBg,
+    padding: 16,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.searchBg,
-    padding: 16,
   },
-  catIcon: {
-    width: 48,
-    height: 48,
-    overflow: "hidden",
-    borderRadius: 16,
-    backgroundColor: colors.white,
-    alignItems: "center",
-    justifyContent: "center",
-    boxShadow: shadows.card,
-  },
-  catName: { fontFamily: fonts.body800, ...text.sm },
-  catCount: { color: colors.mutedFg, fontFamily: fonts.body700, fontSize: 11, lineHeight: 16 },
-  brandTile: {
-    overflow: "hidden",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    padding: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    boxShadow: shadows.card,
-  },
-  brandName: { fontFamily: fonts.body800, ...text.xs, textAlign: "center", color: colors.foreground },
-  h2: { fontFamily: fonts.display900, ...text["3xl"] },
-  subText: { color: colors.mutedFg, ...text.sm, lineHeight: 23 },
-  articleCard: {
-    overflow: "hidden",
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    boxShadow: shadows.card,
-  },
-  articleCover: { aspectRatio: 16 / 10, backgroundColor: "#e8f3e4", alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  date: { color: colors.mutedFg, fontFamily: fonts.body700, fontSize: 11, lineHeight: 16 },
-  articleTitle: { marginTop: 8, fontFamily: fonts.display900, ...text.lg, lineHeight: 25 },
-  stepCard: {
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    padding: 24,
-    boxShadow: shadows.card,
-  },
-  stepNum: { color: colors.primary25, fontFamily: fonts.display900, ...text["3xl"] },
-  stepTitle: { marginTop: 16, fontFamily: fonts.display800, ...text.lg },
-  aboutBody: { marginTop: 24, color: "rgba(16,31,19,0.85)", ...text.base, lineHeight: 32 },
-  featureRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  featureIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.primary10, alignItems: "center", justifyContent: "center" },
-  featureText: { flex: 1, fontFamily: fonts.body800, ...text.sm },
-  aboutCard: {
-    alignItems: "center",
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.searchBg,
-    padding: 32,
-    boxShadow: shadows.card,
-  },
-  aboutTag: { marginTop: 20, color: colors.primary, fontFamily: fonts.display900, ...text.xl, textAlign: "center" },
-  cta: { overflow: "hidden", borderRadius: 24, paddingHorizontal: 24, paddingVertical: 40, gap: 24, boxShadow: shadows.soft },
-  ctaActions: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  iherbKicker: { color: colors.lime, fontFamily: fonts.body800, fontSize: 12 },
+  iherbTitle: { marginTop: 4, color: colors.white, fontFamily: fonts.display800, fontSize: 16, lineHeight: 24 },
+  iherbBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.lime, alignItems: "center", justifyContent: "center" },
+  article: { width: 200, borderRadius: 16, backgroundColor: colors.white, overflow: "hidden" },
+  articleCover: { height: 110, backgroundColor: "#e8f3e4", alignItems: "center", justifyContent: "center" },
+  articleTitle: { padding: 12, fontFamily: fonts.body800, fontSize: 13, lineHeight: 19, color: colors.ink },
 });

@@ -1,7 +1,6 @@
 import { router } from "expo-router";
 import { Tag } from "lucide-react-native";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
-import { CatalogHero } from "@/components/CatalogHero";
 import { OfferCatalogCard } from "@/components/OfferCards";
 import { SiteScreen } from "@/components/SiteScreen";
 import { ErrorBlock, Txt } from "@/components/ui";
@@ -10,11 +9,8 @@ import { useI18n } from "@/lib/locale";
 import { discountPercent } from "@/lib/types";
 import { colors, fonts, twoColWidth } from "@/theme";
 
-const HERO_AR = require("../../../assets/images/Eco-Wellness-Gift-Sale.png");
-const HERO_EN = require("../../../assets/images/Eco-Wellness-Gift-Sale-en.png");
-
 export default function OffersScreen() {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const { width } = useWindowDimensions();
   const offersQuery = usePublicOffers();
   const offers = [...(offersQuery.data ?? [])].sort(
@@ -23,16 +19,14 @@ export default function OffersScreen() {
   const cell = twoColWidth(width);
 
   return (
-    <SiteScreen background={colors.catalogBg} refreshing={offersQuery.isRefetching} onRefresh={() => void offersQuery.refetch()}>
-      <CatalogHero
-        image={locale === "en" ? HERO_EN : HERO_AR}
-        position={locale === "en" ? { right: 0, top: "50%" } : { left: 0, top: "50%" }}
-        overlay="side"
-        crumb={t("navOffers")}
-        pill={t("offerEyebrow")}
-        title={t("allOffers")}
-        subtitle={offers.length > 0 ? t("offersSubCount", { count: offers.length }) : t("offersSubEmpty")}
-      />
+    <SiteScreen refreshing={offersQuery.isRefetching} onRefresh={() => void offersQuery.refetch()}>
+      <View style={styles.banner}>
+        <Text style={styles.bannerKicker}>{t("offerEyebrow")}</Text>
+        <Text style={styles.bannerTitle}>{t("allOffers")}</Text>
+        <Text style={styles.bannerSub}>
+          {offers.length > 0 ? t("offersSubCount", { count: offers.length }) : t("offersSubEmpty")}
+        </Text>
+      </View>
 
       <View style={styles.body}>
         {offersQuery.isLoading ? (
@@ -63,7 +57,11 @@ export default function OffersScreen() {
 }
 
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: 16, paddingVertical: 24 },
+  banner: { margin: 16, marginBottom: 4, borderRadius: 18, backgroundColor: colors.offerInk, padding: 18 },
+  bannerKicker: { color: colors.lime, fontFamily: fonts.body800, fontSize: 12 },
+  bannerTitle: { marginTop: 6, color: colors.white, fontFamily: fonts.display800, fontSize: 24, lineHeight: 32 },
+  bannerSub: { marginTop: 6, color: "rgba(255,255,255,0.78)", fontFamily: fonts.body500, fontSize: 13, lineHeight: 20 },
+  body: { paddingHorizontal: 16, paddingVertical: 16 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   placeholder: {
     alignItems: "center",

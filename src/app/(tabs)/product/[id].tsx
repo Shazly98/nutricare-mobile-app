@@ -1,27 +1,27 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
-import { Minus, Plus, ShoppingBag } from "lucide-react-native";
+import { ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { HtmlBlock } from "@/components/HtmlBlock";
 import { BottleIllustration, WhatsAppIcon } from "@/components/icons";
 import { SiteScreen } from "@/components/SiteScreen";
-import { Breadcrumb, DashedBox, Pill, RemoteImage, Txt } from "@/components/ui";
+import { DashedBox, RemoteImage, Txt } from "@/components/ui";
 import { buildWhatsAppLink } from "@/config/site";
 import { useCart } from "@/lib/cart";
 import { usePublicCategories, usePublicProduct } from "@/lib/catalog";
 import { colorFor, formatNumber, formatPrice, plainFromHtml } from "@/lib/format";
 import { useI18n } from "@/lib/locale";
 import { categoryTitle, productFullHtml, productShortText, productTitle } from "@/lib/localized";
-import { isAvailable } from "@/lib/types";
-import { colors, fonts, shadows, text } from "@/theme";
+import { discountPercent, isAvailable } from "@/lib/types";
+import { colors, fonts, text } from "@/theme";
 
 export default function ProductScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const productQuery = usePublicProduct(id);
   const categories = usePublicCategories();
   const cart = useCart();
-  const { t, locale } = useI18n();
+  const { t, locale, isRTL } = useI18n();
   const [qty, setQty] = useState(1);
   const product = productQuery.data;
 
@@ -37,50 +37,76 @@ export default function ProductScreen() {
   const fullHtml = product ? productFullHtml(product, locale) : "";
   const shortOnly = product ? productShortText(product, locale) : "";
   const outOfStock = product ? !isAvailable(product) : false;
+  const percent = product ? discountPercent(Number(product.price), product.old_price) : 0;
+  const Back = isRTL ? ChevronRight : ChevronLeft;
+
+  const dock = product ? (
+    <View style={styles.dock}>
+      <View style={styles.stepper}>
+        <Pressable onPress={() => setQty((v) => Math.max(1, v - 1))} style={styles.stepBtn} accessibilityLabel={t("decQty")}>
+          <Minus size={16} color={colors.ink} />
+        </Pressable>
+        <Text style={styles.qty}>{formatNumber(qty)}</Text>
+        <Pressable
+          onPress={() => setQty((v) => Math.min(product.stock_qty ?? v + 1, v + 1))}
+          style={styles.stepBtn}
+          accessibilityLabel={t("incQty")}
+        >
+          <Plus size={16} color={colors.ink} />
+        </Pressable>
+      </View>
+      <Pressable
+        disabled={outOfStock}
+        onPress={() => cart.addItem(product, qty)}
+        style={[styles.buy, outOfStock && { opacity: 0.45 }]}
+      >
+        <Text style={styles.buyLabel}>{outOfStock ? t("outOfStock") : t("addToCart")}</Text>
+        <Text style={styles.buyPrice}>{formatPrice(Number(product.price) * qty, locale)}</Text>
+      </Pressable>
+    </View>
+  ) : null;
 
   return (
-    <SiteScreen refreshing={productQuery.isRefetching} onRefresh={() => void productQuery.refetch()}>
+    <SiteScreen refreshing={productQuery.isRefetching} onRefresh={() => void productQuery.refetch()} bottomBar={dock}>
       <View style={styles.page}>
-        <Breadcrumb
-          items={[
-            { label: t("navHome"), href: "/" },
-            { label: t("navProducts"), href: "/products" },
-            { label: listName || t("productDetails") },
-          ]}
-        />
-
         {productQuery.isLoading ? (
-          <DashedBox style={{ marginTop: 40 }}>
+          <DashedBox style={{ marginTop: 40, marginHorizontal: 16 }}>
             <Txt style={styles.muted}>{t("loadingProduct")}</Txt>
           </DashedBox>
         ) : null}
 
         {!productQuery.isLoading && !product ? (
-          <DashedBox style={{ marginTop: 40 }}>
+          <DashedBox style={{ marginTop: 40, marginHorizontal: 16 }}>
             <Txt style={styles.missing}>{t("productMissing")}</Txt>
-            <Pill
-              label={t("backToProducts")}
-              onPress={() => router.navigate("/products")}
-              style={{ marginTop: 16, alignSelf: "center", paddingHorizontal: 20, paddingVertical: 10, boxShadow: "none" }}
-            />
+            <Pressable onPress={() => router.navigate("/products")} style={styles.backLink}>
+              <Text style={styles.backLinkText}>{t("backToProducts")}</Text>
+            </Pressable>
           </DashedBox>
         ) : null}
 
         {product ? (
-          <View style={{ marginTop: 32, gap: 32 }}>
+          <View>
             <View style={styles.imageCard}>
               <LinearGradient
-                colors={[`${color}55`, colors.card]}
-                start={{ x: 0.33, y: 0 }}
-                end={{ x: 0.67, y: 1 }}
+                colors={[`${color}33`, "#f7f8f5"]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
                 style={StyleSheet.absoluteFill}
               />
+              <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityLabel={t("navProducts")}>
+                <Back size={20} color={colors.ink} />
+              </Pressable>
+              {percent > 0 ? (
+                <View style={styles.saleBadge}>
+                  <Text style={styles.saleText}>{`-${percent}%`}</Text>
+                </View>
+              ) : null}
               {outOfStock ? (
                 <View style={styles.outBadge}>
                   <Text style={styles.outText}>{t("outOfStock")}</Text>
                 </View>
               ) : null}
-              <View style={{ aspectRatio: 1 }}>
+              <View style={{ aspectRatio: 1, padding: 28 }}>
                 {product.image_url ? (
                   <RemoteImage uri={product.image_url} fit="contain" style={{ width: "100%", height: "100%" }} />
                 ) : (
@@ -89,10 +115,16 @@ export default function ProductScreen() {
               </View>
             </View>
 
-            <View style={{ gap: 16 }}>
+            <View style={styles.info}>
               {catName ? <Txt style={styles.cat}>{catName}</Txt> : null}
               <Txt style={styles.title}>{listName}</Txt>
               {otherName && otherName !== listName ? <Txt style={styles.other}>{otherName}</Txt> : null}
+              <View style={styles.priceRow}>
+                <Text style={styles.price}>{formatPrice(Number(product.price), locale)}</Text>
+                {product.old_price && Number(product.old_price) > Number(product.price) ? (
+                  <Text style={styles.oldPrice}>{formatPrice(Number(product.old_price), locale)}</Text>
+                ) : null}
+              </View>
               {product.brand ? (
                 <Txt style={styles.meta}>
                   {t("brandLabel")}: {product.brand}
@@ -105,50 +137,20 @@ export default function ProductScreen() {
               ) : null}
               {shortOnly && shortOnly !== plainFromHtml(fullHtml) ? <Txt style={styles.short}>{shortOnly}</Txt> : null}
               {fullHtml ? <HtmlBlock html={fullHtml} /> : null}
-
-              <View style={styles.priceRow}>
-                <Text style={styles.price}>{formatPrice(Number(product.price), locale)}</Text>
-                {product.old_price && Number(product.old_price) > Number(product.price) ? (
-                  <Text style={styles.oldPrice}>{formatPrice(Number(product.old_price), locale)}</Text>
-                ) : null}
-              </View>
-
               <View style={styles.note}>
                 <Txt style={styles.noteText}>
                   <Text style={styles.noteStrong}>{t("usageNote")}</Text> {t("usageBody")}
                 </Txt>
               </View>
-
-              <View style={styles.actions}>
-                <View style={styles.stepper}>
-                  <Pressable onPress={() => setQty((v) => Math.max(1, v - 1))} style={styles.stepBtn} accessibilityLabel={t("decQty")}>
-                    <Minus size={16} color={colors.foreground} />
-                  </Pressable>
-                  <Text style={styles.qty}>{formatNumber(qty)}</Text>
-                  <Pressable
-                    onPress={() => setQty((v) => Math.min(product.stock_qty ?? v + 1, v + 1))}
-                    style={styles.stepBtn}
-                    accessibilityLabel={t("incQty")}
-                  >
-                    <Plus size={16} color={colors.foreground} />
-                  </Pressable>
-                </View>
-                <Pill
-                  label={outOfStock ? t("outOfStock") : t("addToCart")}
-                  icon={<ShoppingBag size={16} color={colors.primaryFg} />}
-                  disabled={outOfStock}
-                  onPress={() => cart.addItem(product, qty)}
-                />
-                <Pill
-                  variant="outlinePrimary"
-                  label={t("waAsk")}
-                  icon={<WhatsAppIcon size={16} color={colors.primary} />}
-                  onPress={() =>
-                    void Linking.openURL(buildWhatsAppLink(t("productWa", { name: listName, price: Number(product.price) })))
-                  }
-                  style={{ paddingHorizontal: 20 }}
-                />
-              </View>
+              <Pressable
+                onPress={() =>
+                  void Linking.openURL(buildWhatsAppLink(t("productWa", { name: listName, price: Number(product.price) })))
+                }
+                style={styles.wa}
+              >
+                <WhatsAppIcon size={16} color={colors.primary} />
+                <Text style={styles.waText}>{t("waAsk")}</Text>
+              </Pressable>
             </View>
           </View>
         ) : null}
@@ -158,53 +160,92 @@ export default function ProductScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { paddingHorizontal: 16, paddingVertical: 40 },
+  page: { paddingBottom: 8 },
   muted: { color: colors.mutedFg, ...text.base, textAlign: "center" },
   missing: { fontFamily: fonts.body800, ...text.base, textAlign: "center" },
-  imageCard: {
-    overflow: "hidden",
-    borderRadius: 32,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    padding: 32,
-    boxShadow: shadows.card,
+  backLink: { marginTop: 16, alignSelf: "center", borderRadius: 12, backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 10 },
+  backLinkText: { color: colors.white, fontFamily: fonts.body800, fontSize: 14 },
+  imageCard: { overflow: "hidden", backgroundColor: "#f7f8f5", aspectRatio: 1 },
+  backBtn: {
+    position: "absolute",
+    top: 12,
+    start: 12,
+    zIndex: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
   },
+  saleBadge: {
+    position: "absolute",
+    top: 12,
+    end: 12,
+    zIndex: 10,
+    borderRadius: 8,
+    backgroundColor: colors.sale,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  saleText: { color: colors.white, fontFamily: fonts.body800, fontSize: 12 },
   outBadge: {
     position: "absolute",
-    top: 16,
-    end: 16,
+    top: 56,
+    end: 12,
     zIndex: 10,
-    borderRadius: 999,
-    backgroundColor: "rgba(238,54,47,0.9)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    boxShadow: shadows.card,
+    borderRadius: 8,
+    backgroundColor: colors.ink,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   outText: { color: colors.white, fontFamily: fonts.body800, ...text.xs },
+  info: { paddingHorizontal: 16, paddingTop: 16, gap: 10 },
   cat: { color: colors.primary, fontFamily: fonts.body700, ...text.xs },
-  title: { fontFamily: fonts.display900, fontSize: 30, lineHeight: 40 },
-  other: { color: "rgba(16,31,19,0.85)", fontFamily: fonts.body800, ...text.lg },
+  title: { fontFamily: fonts.display800, fontSize: 22, lineHeight: 30 },
+  other: { color: colors.mutedFg, fontFamily: fonts.body700, ...text.sm },
   meta: { color: colors.mutedFg, ...text.sm },
-  short: { color: "rgba(16,31,19,0.8)", ...text.sm, lineHeight: 23 },
-  priceRow: { flexDirection: "row", alignItems: "baseline", gap: 12 },
-  price: { color: colors.primary, fontFamily: fonts.body900, ...text["2xl"] },
+  short: { color: colors.ink, ...text.sm, lineHeight: 23 },
+  priceRow: { flexDirection: "row", alignItems: "baseline", gap: 10 },
+  price: { color: colors.ink, fontFamily: fonts.body900, fontSize: 22, lineHeight: 28 },
   oldPrice: { color: colors.mutedFg, ...text.sm, fontFamily: fonts.body400, textDecorationLine: "line-through" },
-  note: { borderRadius: 16, borderWidth: 1, borderColor: colors.destructive20, backgroundColor: colors.destructive5, padding: 16 },
+  note: { borderRadius: 14, backgroundColor: colors.destructive5, padding: 14 },
   noteText: { color: "rgba(16,31,19,0.8)", ...text.xs, lineHeight: 19.5 },
   noteStrong: { color: colors.destructive, fontFamily: fonts.body700 },
-  actions: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 12 },
-  stepper: {
+  wa: {
+    alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    borderRadius: 999,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    borderColor: colors.primary30,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
-  stepBtn: { width: 36, height: 36, borderRadius: 999, backgroundColor: colors.secondary, alignItems: "center", justifyContent: "center" },
-  qty: { minWidth: 24, textAlign: "center", color: colors.foreground, fontFamily: fonts.body800, ...text.base },
+  waText: { color: colors.primary, fontFamily: fonts.body800, fontSize: 14 },
+  dock: { flexDirection: "row", alignItems: "center", gap: 10 },
+  stepper: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderRadius: 12,
+    backgroundColor: colors.canvas,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+  },
+  stepBtn: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.white, alignItems: "center", justifyContent: "center" },
+  qty: { minWidth: 22, textAlign: "center", color: colors.ink, fontFamily: fonts.body800, fontSize: 15 },
+  buy: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: colors.addGreen,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+  },
+  buyLabel: { color: colors.white, fontFamily: fonts.body800, fontSize: 15 },
+  buyPrice: { color: colors.white, fontFamily: fonts.body800, fontSize: 15 },
 });
